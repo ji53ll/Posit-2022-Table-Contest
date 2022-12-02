@@ -295,7 +295,7 @@ final_df_private <-
     font_weight = "normal"
   ) %>%
   gt_highlight_rows(
-    rows = c(1,2,3),
+    rows = c(1,2,5),
     fill = "#FBFAF9",
     font_color = "black",
     bold_target_only = FALSE,
@@ -1010,7 +1010,6 @@ ax3.annotate('Water Supply ~ (+34.5% change)', xy =(0, 19000),
 plt.tight_layout()
 plt.show()
 ```
-
 ![](Submission/Construction_Spending_Jisell_Howe_2022_12_01_files/figure-html/unnamed-chunk-16-1.png)
 
 The most significant growth percentages and decline percentages over the past year are colored with stronger blue and red lines in each chart. In addition, New Single Family as a category is also noted due to the large amount of spending in that category in general. That said, efforts were made to separate overall category summary data such as "Residential", "Nonresidential", and "Total..." . Overall summary categories are not shown in favor of displaying broken down categories within those overall categories in a closer look. Please refer to tables for overall summary and breakdown categories presented together. Please also refer to the U.S. Census Bureau's [definitions](https://www.census.gov/construction/c30/definitions.html) for any given category.
