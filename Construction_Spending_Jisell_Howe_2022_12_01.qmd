@@ -1,0 +1,1008 @@
+---
+title: "Construction Spending in the United States"
+author: "Jisell Howe, CDT"
+date: "2022-12-01"
+execute: 
+  echo: FALSE
+  warning: FALSE
+  wrap: TRUE
+format:
+  html:
+    embed-resources: true
+editor: visual
+---
+
+The [Value of Construction Put in Place Survey (VIP)](https://www.census.gov/construction/c30/c30index.html) is conducted by the U.S. Census Bureau and provides monthly estimates of the total dollar value of construction work done in the United States. These estimates are released on a [certain schedule](https://www.census.gov/construction/c30/release.html) and cover work done on new structures and improvements to existing structures for both Private and Public Sector construction. Responses are voluntary and are collected with a certain [methodology](https://www.census.gov/construction/c30/meth.html) (U.S. Census Bureau, 2022).
+
+The seasonally adjusted annual rate tables below show Total Construction as well as Private and Public Sectors separately. Comparisons between previous month and previous year are made, and the "trend" column shows a quick visual of what the last year has looked like for that particular [construction classification](https://www.census.gov/construction/c30/definitions.html). Further line charts below the tables show time series visuals for various construction classifications in the same context.
+
+According to the October 2022 report that was released on December 1st, 2022, the largest increases in the past year are evident in the Manufacturing, Water Supply, and Commercial categories. In contrast, the largest decreases in the past year are evident in the Power category. For the latest [data release](https://www.census.gov/construction/c30/data/index.html), please refer to the U.S. Census Bureau resources.
+
+```{r}
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(rio)
+library(dplyr)
+library(sparkline)
+
+#####IMPORTANT NOTE: The df1 data set is a live link from the U.S. Census Bureau website that updates on a certain schedule every month (i.e Nov 1st, Dec 1st, etc.. While the code for the tables and charts does indeed update based on this live link, it is very important to properly refresh links to the merged df2 & df3 because the data sets only capture a few months at a time and were spliced to create a year's worth of data. You may need to link to different data sets on the US Census Bureau website. You will also need to rename the columns and remake the annotations to match the latest data. Otherwise, you will risk not capturing a full years worth of data, or it will be refreshed data that is improperly labeled...An alternative option is to simply reference the excel files in a static way if you are not concerned with an automatically updating table over time. Please refer to the U.S. Census Bureau website for any details regarding the data sets.
+
+#https://www.census.gov/construction/c30/data/index.html
+
+########################
+
+
+# import data - June 2022 - Oct 2022
+url <- 'https://www.census.gov/construction/c30/xls/release.xlsx'
+url1 <- rio::import(file = url,which = 1, skip = 4)
+
+# clean up data
+df1 <- url1 %>% drop_na()
+
+# defining column names using vector
+names(df1) = c("Type_of_Construction","Oct_2022","Sep_2022","Aug_2022","Jul_2022","Jun_2022","Oct_2021","Ref_Sep_2022", "Ref_Oct_2021")
+
+df1 <- select(df1, Type_of_Construction, Jun_2022, Jul_2022, Aug_2022, Sep_2022, Oct_2022, Oct_2021, Ref_Sep_2022, Ref_Oct_2021)
+
+```
+
+```{r}
+# Jan 2022 - May 2022 data
+# import data from URL
+url <- 'https://www.census.gov/construction/c30/xls/pr202205.xlsx'
+url2 <- rio::import(file = url,which = 1, skip = 4)
+
+# clean up data
+df2 <- url2 %>% drop_na()
+
+# defining column names using vector
+names(df2) = c("Type_of_Construction1","May_2022","Apr_2022","Mar_2022","Feb_2022","Jan_2022","May_2021","Ref_April_2022", "Ref_May_2021")
+
+#selecting specific data (not June as it's already captured in df1)
+df2 <- select(df2, Type_of_Construction1, Jan_2022, Feb_2022, Mar_2022, Apr_2022, May_2022)
+```
+
+```{r}
+# Nov 2021 - Dec 2021 data
+# import data from URL
+url <- 'https://www.census.gov/construction/c30/xls/pr202201.xlsx'
+url3 <- rio::import(file = url,which = 1, skip = 4)
+
+# clean up data
+df3 <- url3 %>% drop_na()
+
+# defining column names using vector
+names(df3) = c("Type_of_Construction2","Jan_2022","Dec_2021","Nov_2021","Oct_2021","Sep_2021","Jan_2021","Ref_Dec_2021", "Ref_Jan_2021")
+
+#selecting specific data (not Oct as it's already captured in df1)
+df3 <- select(df3, Type_of_Construction2, Nov_2021, Dec_2021)
+```
+
+```{r}
+# merge all dataframes
+df <- cbind(df1, df2, df3)
+
+df <- select(df,Type_of_Construction, Oct_2021, Nov_2021, Dec_2021, Jan_2022, Feb_2022, Mar_2022, Apr_2022, May_2022, Jun_2022, Jul_2022, Aug_2022, Sep_2022, Oct_2022, Ref_Sep_2022, Ref_Oct_2021)
+
+```
+
+```{r}
+# segments dataframes by construction category
+df_all <- head(df, 19)
+df_private <- df[20:35, ]
+df_public <- df[36:50, ]
+
+```
+
+```{r}
+# Table - All Construction
+final_df_all <- 
+  df_all %>%
+  rowwise() %>%
+  mutate(trend = list(c_across(-one_of("Type_of_Construction", "Ref_Sep_2022", "Ref_Oct_2021")))) %>%
+  select(Type_of_Construction, Oct_2022, Oct_2021, Ref_Sep_2022, Ref_Oct_2021, trend) %>%
+  gt() %>%
+  gt_theme_nytimes() %>%
+  tab_header(
+    title = md("**Construction Spending - All**"),
+    subtitle = md("*Data presented in millions of dollars. Rounding may affect accuracy when summarizing data.*")
+    ) %>% 
+  tab_options(heading.align = "left",
+              table.border.top.color = "white",
+              table.border.top.width = px(3)) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#D9E8F5"),
+      cell_text(color = "#304269"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2022 > Oct_2021)
+  ) %>%    
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1"),
+      cell_text(style = "italic"),
+      cell_text(color = "#590219"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2021 > Oct_2022)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Sep_2022),
+      rows = Ref_Sep_2022 < 0)
+    ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Oct_2021),
+      rows = Ref_Oct_2021 < 0)
+    ) %>%
+    gt_highlight_cols(
+    Type_of_Construction,
+    fill = "#F2EEE9",
+    font_color = "black",
+    font_weight = "normal"
+  ) %>%
+  gt_highlight_rows(
+    rows = c(1,2,3),
+    fill = "#FBFAF9",
+    font_color = "black",
+    bold_target_only = FALSE,
+    target_col = Type_of_Construction
+  ) %>%
+  gt_add_divider(
+    columns = "Type_of_Construction", 
+    style = "solid", 
+    weight = px(4)) %>%
+  gt_add_divider(
+    columns = "Oct_2021", 
+    style = "solid", 
+    weight = px(2)) %>%
+  gt_add_divider(
+    columns = "Ref_Oct_2021", 
+    style = "solid", 
+    weight = px(4)) %>%
+  fmt_currency(
+    columns = c(Oct_2022, Oct_2021),
+    currency = "USD",
+    decimals = 0
+  ) %>%
+  fmt(
+    columns = c(Ref_Sep_2022, Ref_Oct_2021),
+    fns = function(x) {
+      paste0(x * 1, "%")
+    }
+  ) %>%
+  gt_plt_sparkline(
+    trend,
+    type = "ref_last",
+    fig_dim = c(8, 40),
+    palette = c("black", "black", "#D9043D", "#0669BF", "#3E606F"),
+    same_limit = FALSE,
+    label = TRUE
+  ) %>%
+  gt::cols_align(
+    align = "center",
+    columns = c("Oct_2022", "Oct_2021", "Ref_Sep_2022", "Ref_Oct_2021")
+  ) %>%
+  tab_spanner(
+    label = md("**Percentage Change**"),
+    columns = Ref_Sep_2022:Ref_Oct_2021) %>%
+  tab_spanner(
+    label = md("**Comparison**"),
+    columns = Oct_2022:Oct_2021) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(4)
+  ) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(5)
+  ) %>%
+  tab_footnote(
+    "Trends from October 2021 to October 2022",
+    locations = cells_column_labels(6)
+  ) %>%
+  tab_footnote(
+    "Preliminary",
+    locations = cells_column_labels(1)
+  ) %>%
+  tab_footnote(
+    "Revised",
+    locations = cells_column_labels(2)
+  ) %>%
+  tab_footnote(
+    "Annual rate; Data adjusted for seasonality but not price changes.",
+    locations = cells_column_labels(0)
+  ) %>%
+  tab_source_note(md("**Table**: Jisell Howe, CDT | **Data**: U.S Census Bureau, Construction Spending, December 1st, 2022 <br> **Additional Information**: www.census.gov/construction/c30/meth.html")) %>%
+  cols_width(
+    #Type_of_Construction ~ px(100),
+    Oct_2022 ~ px(100),
+    Oct_2021 ~ px(100),
+    Ref_Sep_2022 ~ px(30),
+    Ref_Oct_2021 ~ px(30),
+    trend ~ px(40)
+  )
+```
+
+```{r}
+# Table - Private Sector
+final_df_private <- 
+  df_private %>%
+  rowwise() %>%
+  mutate(trend = list(c_across(-one_of("Type_of_Construction", "Ref_Sep_2022", "Ref_Oct_2021")))) %>%
+  select(Type_of_Construction, Oct_2022, Oct_2021, Ref_Sep_2022, Ref_Oct_2021, trend) %>%
+  gt() %>%
+  gt_theme_nytimes() %>%
+  tab_header(
+    title = md("**Construction Spending - Private Sector**"),
+    subtitle = md("*Data presented in millions of dollars. Rounding may affect accuracy when summarizing data. <br> <br> Data presented includes the following private construction categories (not shown separately):<br> public safety, highway and street, sewage and waste disposal, water supply, and conservation and development<br> as well as private residential improvements.*")
+    ) %>% 
+  tab_options(heading.align = "left",
+              table.border.top.color = "white",
+              table.border.top.width = px(3)) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#D9E8F5"),
+      cell_text(color = "#304269"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2022 > Oct_2021)
+  ) %>%    
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1"),
+      cell_text(style = "italic"),
+      cell_text(color = "#590219"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2021 > Oct_2022)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Sep_2022),
+      rows = Ref_Sep_2022 < 0)
+    ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Oct_2021),
+      rows = Ref_Oct_2021 < 0)
+    ) %>%
+    gt_highlight_cols(
+    Type_of_Construction,
+    fill = "#F2EEE9",
+    font_color = "black",
+    font_weight = "normal"
+  ) %>%
+  gt_highlight_rows(
+    rows = c(1,2,3),
+    fill = "#FBFAF9",
+    font_color = "black",
+    bold_target_only = FALSE,
+    target_col = Type_of_Construction
+  ) %>%
+  gt_add_divider(
+    columns = "Type_of_Construction", 
+    style = "solid", 
+    weight = px(4)) %>%
+  gt_add_divider(
+    columns = "Oct_2021", 
+    style = "solid", 
+    weight = px(2)) %>%
+  gt_add_divider(
+    columns = "Ref_Oct_2021", 
+    style = "solid", 
+    weight = px(4)) %>%
+  fmt_currency(
+    columns = c(Oct_2022, Oct_2021),
+    currency = "USD",
+    decimals = 0
+  ) %>%
+  fmt(
+    columns = c(Ref_Sep_2022, Ref_Oct_2021),
+    fns = function(x) {
+      paste0(x * 1, "%")
+    }
+  ) %>%
+  gt_plt_sparkline(
+    trend,
+    type = "ref_last",
+    fig_dim = c(8, 40),
+    palette = c("black", "black", "#D9043D", "#0669BF", "#3E606F"),
+    same_limit = FALSE,
+    label = TRUE
+  ) %>%
+  gt::cols_align(
+    align = "center",
+    columns = c("Oct_2022", "Oct_2021", "Ref_Sep_2022", "Ref_Oct_2021")
+  ) %>%
+  tab_spanner(
+    label = md("**Percentage Change**"),
+    columns = Ref_Sep_2022:Ref_Oct_2021) %>%
+  tab_spanner(
+    label = md("**Comparison**"),
+    columns = Oct_2022:Oct_2021) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(4)
+  ) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(5)
+  ) %>%
+  tab_footnote(
+    "Trends from October 2021 to October 2022",
+    locations = cells_column_labels(6)
+  ) %>%
+  tab_footnote(
+    "Preliminary",
+    locations = cells_column_labels(1)
+  ) %>%
+  tab_footnote(
+    "Revised",
+    locations = cells_column_labels(2)
+  ) %>%
+  tab_footnote(
+    "Annual rate; Data adjusted for seasonality but not price changes.",
+    locations = cells_column_labels(0)
+  ) %>%
+  tab_source_note(md("**Table**: Jisell Howe, CDT | **Data**: U.S Census Bureau, Construction Spending, December 1st, 2022 <br> **Additional Information**: www.census.gov/construction/c30/meth.html")) %>%
+  cols_width(
+    #Type_of_Construction ~ px(100),
+    Oct_2022 ~ px(100),
+    Oct_2021 ~ px(100),
+    Ref_Sep_2022 ~ px(30),
+    Ref_Oct_2021 ~ px(30),
+    trend ~ px(40)
+  )
+```
+
+```{r}
+# Table - Public Sector
+final_df_public <- 
+  df_public %>%
+  rowwise() %>%
+  mutate(trend = list(c_across(-one_of("Type_of_Construction", "Ref_Sep_2022", "Ref_Oct_2021")))) %>%
+  select(Type_of_Construction, Oct_2022, Oct_2021, Ref_Sep_2022, Ref_Oct_2021, trend) %>%
+  gt() %>%
+  gt_theme_nytimes() %>%
+  tab_header(
+    title = md("**Construction Spending - Public Sector**"),
+    subtitle = md("*Data presented in millions of dollars. Rounding may affect accuracy when summarizing data. <br> <br> Data presented includes the following public construction categories (not shown separately): <br>lodging, religious, communication, and manufacturing.*")
+    ) %>% 
+  tab_options(heading.align = "left",
+              table.border.top.color = "white",
+              table.border.top.width = px(3)) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#D9E8F5"),
+      cell_text(color = "#304269"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2022 > Oct_2021)
+  ) %>%    
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1"),
+      cell_text(style = "italic"),
+      cell_text(color = "#590219"),
+      cell_text(weight = "normal")
+      ),
+    locations = cells_body(rows = Oct_2021 > Oct_2022)
+  ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Sep_2022),
+      rows = Ref_Sep_2022 < 0)
+    ) %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#F58BA1")
+    ),
+    locations = cells_body(
+      columns = c(Ref_Oct_2021),
+      rows = Ref_Oct_2021 < 0)
+    ) %>%
+    gt_highlight_cols(
+    Type_of_Construction,
+    fill = "#F2EEE9",
+    font_color = "black",
+    font_weight = "normal"
+  ) %>%
+  gt_highlight_rows(
+    rows = c(1,2,3),
+    fill = "#FBFAF9",
+    font_color = "black",
+    bold_target_only = FALSE,
+    target_col = Type_of_Construction
+  ) %>%
+  gt_add_divider(
+    columns = "Type_of_Construction", 
+    style = "solid", 
+    weight = px(4)) %>%
+  gt_add_divider(
+    columns = "Oct_2021", 
+    style = "solid", 
+    weight = px(2)) %>%
+  gt_add_divider(
+    columns = "Ref_Oct_2021", 
+    style = "solid", 
+    weight = px(4)) %>%
+  fmt_currency(
+    columns = c(Oct_2022, Oct_2021),
+    currency = "USD",
+    decimals = 0
+  ) %>%
+  fmt(
+    columns = c(Ref_Sep_2022, Ref_Oct_2021),
+    fns = function(x) {
+      paste0(x * 1, "%")
+    }
+  ) %>%
+  gt_plt_sparkline(
+    trend,
+    type = "ref_last",
+    fig_dim = c(8, 40),
+    palette = c("black", "black", "#D9043D", "#0669BF", "#3E606F"),
+    same_limit = FALSE,
+    label = TRUE
+  ) %>%
+  gt::cols_align(
+    align = "center",
+    columns = c("Oct_2022", "Oct_2021", "Ref_Sep_2022", "Ref_Oct_2021")
+  ) %>%
+  tab_spanner(
+    label = md("**Percentage Change**"),
+    columns = Ref_Sep_2022:Ref_Oct_2021) %>%
+  tab_spanner(
+    label = md("**Comparison**"),
+    columns = Oct_2022:Oct_2021) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(4)
+  ) %>%
+  tab_footnote(
+    "Percentage Change referenced with October 2022",
+    locations = cells_column_labels(5)
+  ) %>%
+  tab_footnote(
+    "Trends from October 2021 to October 2022",
+    locations = cells_column_labels(6)
+  ) %>%
+  tab_footnote(
+    "Preliminary",
+    locations = cells_column_labels(1)
+  ) %>%
+  tab_footnote(
+    "Revised",
+    locations = cells_column_labels(2)
+  ) %>%
+  tab_footnote(
+    "Annual rate; Data adjusted for seasonality but not price changes.",
+    locations = cells_column_labels(0)
+  ) %>%
+  tab_source_note(md("**Table**: Jisell Howe, CDT | **Data**: U.S Census Bureau, Construction Spending, December 1st, 2022 <br> **Additional Information**: www.census.gov/construction/c30/meth.html")) %>%
+  cols_width(
+    #Type_of_Construction ~ px(100),
+    Oct_2022 ~ px(100),
+    Oct_2021 ~ px(100),
+    Ref_Sep_2022 ~ px(30),
+    Ref_Oct_2021 ~ px(30),
+    trend ~ px(40)
+  )
+
+```
+
+```{r}
+# generate all Tables
+final_df_all
+final_df_private
+final_df_public
+```
+
+```{python}
+# Import libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pl
+import matplotlib.gridspec as gridspec
+
+#####IMPORTANT NOTE: The df_1 data set is a live link from the U.S. Census Bureau website that updates on a certain schedule every month (i.e Nov 1st, Dec 1st, etc.). While the code for the tables and charts does indeed update based on this live link, it is very important to properly refresh links to the merged df_2 & df_3 because the data sets only capture a few months at a time and were spliced to create a year's worth of data. You may need to link to different data sets on the US Census Bureau website. You will also need to rename the columns and remake the annotations to match the latest data. Otherwise, you will risk not capturing a full years worth of data, or it will be refreshed data that is improperly labeled...An alternative option is to simply reference the excel files in a static way if you are not concerned with an automatically updating table over time. Please refer to the U.S. Census Bureau website for any details regarding the data sets.
+
+#https://www.census.gov/construction/c30/data/index.html
+
+########################
+
+# read data June 2022 - Oct 2022
+df = pd.read_excel('https://www.census.gov/construction/c30/xls/release.xlsx', skiprows=4)
+
+df_1 = df.dropna()
+df_1 = df_1.iloc[ : , :7]
+newcolumns1 = ["Type_of_Construction","Oct_2022","Sep_2022", "Aug_2022", "Jul_2022", "Jun_2022", "Oct_2021"]
+df_1.columns = newcolumns1
+
+x1 = df_1.columns[1:]
+x1 = list(df_1.columns)[1:]
+x1.reverse()
+
+# read data Jan 2022 - May 2022
+df = pd.read_excel('https://www.census.gov/construction/c30/xls/pr202205.xlsx', skiprows=4)
+
+df_2 = df.dropna()
+df_2 = df_2.iloc[ : , :6]
+newcolumns2 = ["Type_of_Construction", "May_2022","Apr_2022", "Mar_2022", "Feb_2022", "Jan_2022"]
+df_2.columns = newcolumns2
+
+x2 = df_2.columns[1:]
+x2 = list(df_2.columns)[1:]
+x2.reverse()
+
+# read data Oct 2021 - Dec 2021
+df = pd.read_excel('https://www.census.gov/construction/c30/xls/pr202201.xlsx', skiprows=4)
+
+df_3 = df.dropna()
+df_3 = df_3.iloc[ : , :5]
+newcolumns3 = ["Type_of_Construction", "Jan_2022_", "Dec_2021", "Nov_2021", "Oct_2021_"]
+df_3.columns = newcolumns3
+
+x3 = df_3.columns[1:]
+x3 = list(df_3.columns)[1:]
+x3.reverse()
+```
+
+```{python}
+# combine data sets
+
+df_m = pd.merge(df_1, df_2, left_index=True, right_index=True, suffixes=('_df1', '_df2'))
+
+df_c = pd.merge(df_m, df_3, left_index=True, right_index=True, suffixes=('_dfm', '_df3'))
+
+
+df_master = df_c[["Type_of_Construction", "Oct_2021", "Nov_2021", "Dec_2021", "Jan_2022", "Feb_2022", "Mar_2022", "Apr_2022", "May_2022", "Jun_2022", "Jul_2022", "Aug_2022", "Sep_2022", "Oct_2022"]]
+
+
+x = df_master.columns[1:]
+x = list(df_master.columns)[1:]
+
+```
+
+```{python}
+#segment data based on construction category. The data sets feature various categories together.
+
+df_all = df_master.head(n=19)
+df_private = df_master[20:35]
+df_public = df_master[36:50]
+```
+
+```{python}
+#y values per Construction Type - All. This locates the proper row and creates a list with a year's worth of data for every construction type.
+
+y1 = df_all[df_all["Type_of_Construction"].str.contains("Total Construction")]
+y1 = list(y1.loc[1])
+y1 = list(y1[1:])
+
+y2 = df_all[df_all["Type_of_Construction"].str.contains("Residential")]
+y2 = list(y2.loc[3])
+y2 = list(y2[1:])
+
+y3 = df_all[df_all["Type_of_Construction"].str.contains("Nonresidential")]
+y3 = list(y3.loc[5])
+y3 = list(y3[1:])
+
+y4 = df_all[df_all["Type_of_Construction"].str.contains("Lodging")]
+y4 = list(y4.loc[6])
+y4 = list(y4[1:])
+
+y5 = df_all[df_all["Type_of_Construction"].str.contains("Office")]
+y5 = list(y5.loc[7])
+y5 = list(y5[1:])
+
+y6 = df_all[df_all["Type_of_Construction"].str.contains("Commercial")]
+y6 = list(y6.loc[8])
+y6 = list(y6[1:])
+
+y7 = df_all[df_all["Type_of_Construction"].str.contains("Health care")]
+y7 = list(y7.loc[9])
+y7 = list(y7[1:])
+
+y8 = df_all[df_all["Type_of_Construction"].str.contains("Educational")]
+y8 = list(y8.loc[10])
+y8 = list(y8[1:])
+
+y9 = df_all[df_all["Type_of_Construction"].str.contains("Religious")]
+y9 = list(y9.loc[11])
+y9 = list(y9[1:])
+
+y10 = df_all[df_all["Type_of_Construction"].str.contains("Public safety")]
+y10 = list(y10.loc[12])
+y10 = list(y10[1:])
+
+y11 = df_all[df_all["Type_of_Construction"].str.contains("Amusement and recreation")]
+y11 = list(y11.loc[13])
+y11 = list(y11[1:])
+
+y12 = df_all[df_all["Type_of_Construction"].str.contains("Transportation")]
+y12 = list(y12.loc[14])
+y12 = list(y12[1:])
+
+y13 = df_all[df_all["Type_of_Construction"].str.contains("Communication")]
+y13 = list(y13.loc[15])
+y13 = list(y13[1:])
+
+y14 = df_all[df_all["Type_of_Construction"].str.contains("Power")]
+y14 = list(y14.loc[16])
+y14 = list(y14[1:])
+
+y15 = df_all[df_all["Type_of_Construction"].str.contains("Highway and street")]
+y15 = list(y15.loc[17])
+y15 = list(y15[1:])
+
+y16 = df_all[df_all["Type_of_Construction"].str.contains("Sewage and waste disposal")]
+y16 = list(y16.loc[18])
+y16 = list(y16[1:])
+
+y17 = df_all[df_all["Type_of_Construction"].str.contains("Water supply")]
+y17 = list(y17.loc[19])
+y17 = list(y17[1:])
+
+y18 = df_all[df_all["Type_of_Construction"].str.contains("Conservation and development")]
+y18 = list(y18.loc[20])
+y18 = list(y18[1:])
+
+y19 = df_all[df_all["Type_of_Construction"].str.contains("Manufacturing")]
+y19 = list(y19.loc[21])
+y19 = list(y19[1:])
+```
+
+```{python}
+#y values per Construction Type - Private. This locates the proper row and creates a list with a year's worth of data for every construction type.
+
+#y20 = df_private[df_private["Type_of_Construction"].str.contains("Private")]
+#y20 = list(y20.loc[24])
+#y20 = list(y20[1:])
+
+y21 = df_private[df_private["Type_of_Construction"].str.contains("Residential")]
+y21 = list(y21.loc[25])
+y21 = list(y21[1:])
+
+y22 = df_private[df_private["Type_of_Construction"].str.contains("New single family")]
+y22 = list(y22.loc[26])
+y22 = list(y22[1:])
+
+y23 = df_private[df_private["Type_of_Construction"].str.contains("New multifamily")]
+y23 = list(y23.loc[27])
+y23 = list(y23[1:])
+
+y24 = df_private[df_private["Type_of_Construction"].str.contains("Nonresidential")]
+y24 = list(y24.loc[29])
+y24 = list(y24[1:])
+
+y25 = df_private[df_private["Type_of_Construction"].str.contains("Lodging")]
+y25 = list(y25.loc[30])
+y25 = list(y25[1:])
+
+y26 = df_private[df_private["Type_of_Construction"].str.contains("Office")]
+y26 = list(y26.loc[31])
+y26 = list(y26[1:])
+
+y27 = df_private[df_private["Type_of_Construction"].str.contains("Commercial")]
+y27 = list(y27.loc[32])
+y27 = list(y27[1:])
+
+y28 = df_private[df_private["Type_of_Construction"].str.contains("Health care")]
+y28 = list(y28.loc[33])
+y28 = list(y28[1:])
+
+y29 = df_private[df_private["Type_of_Construction"].str.contains("Educational")]
+y29 = list(y29.loc[34])
+y29 = list(y29[1:])
+
+y30 = df_private[df_private["Type_of_Construction"].str.contains("Religious")]
+y30 = list(y30.loc[35])
+y30 = list(y30[1:])
+
+y31 = df_private[df_private["Type_of_Construction"].str.contains("Amusement and recreation")]
+y31 = list(y31.loc[36])
+y31 = list(y31[1:])
+
+y32 = df_private[df_private["Type_of_Construction"].str.contains("Transportation")]
+y32 = list(y32.loc[37])
+y32 = list(y32[1:])
+
+y33 = df_private[df_private["Type_of_Construction"].str.contains("Communication")]
+y33 = list(y33.loc[38])
+y33 = list(y33[1:])
+
+y34 = df_private[df_private["Type_of_Construction"].str.contains("Power")]
+y34 = list(y34.loc[39])
+y34 = list(y34[1:])
+
+y35 = df_private[df_private["Type_of_Construction"].str.contains("Manufacturing")]
+y35 = list(y35.loc[40])
+y35 = list(y35[1:])
+
+```
+
+```{python}
+#y values per Construction Type - Public.This locates the proper row and creates a list with a year's worth of data for every construction type.
+
+#y36 = df_public[df_public["Type_of_Construction"].str.contains("Total Public Construction")]
+#y36 = list(y36.loc[0])
+#y36 = list(y36[1:])
+
+y37 = df_public[df_public["Type_of_Construction"].str.contains("Residential")]
+y37 = list(y37.loc[44])
+y37 = list(y37[1:])
+
+y38 = df_public[df_public["Type_of_Construction"].str.contains("Nonresidential")]
+y38 = list(y38.loc[46])
+y38 = list(y38[1:])
+
+y39 = df_public[df_public["Type_of_Construction"].str.contains("Office")]
+y39 = list(y39.loc[47])
+y39 = list(y39[1:])
+
+y40 = df_public[df_public["Type_of_Construction"].str.contains("Commercial")]
+y40 = list(y40.loc[48])
+y40 = list(y40[1:])
+
+y41 = df_public[df_public["Type_of_Construction"].str.contains("Health care")]
+y41 = list(y41.loc[49])
+y41 = list(y41[1:])
+
+y42 = df_public[df_public["Type_of_Construction"].str.contains("Educational")]
+y42 = list(y42.loc[50])
+y42 = list(y42[1:])
+
+y43 = df_public[df_public["Type_of_Construction"].str.contains("Public safety")]
+y43 = list(y43.loc[51])
+y43 = list(y43[1:])
+
+y44 = df_public[df_public["Type_of_Construction"].str.contains("Amusement and recreation")]
+y44 = list(y44.loc[52])
+y44 = list(y44[1:])
+
+y45 = df_public[df_public["Type_of_Construction"].str.contains("Transportation")]
+y45 = list(y45.loc[53])
+y45 = list(y45[1:])
+
+y46 = df_public[df_public["Type_of_Construction"].str.contains("Power")]
+y46 = list(y46.loc[54])
+y46 = list(y46[1:])
+
+y47 = df_public[df_public["Type_of_Construction"].str.contains("Highway and street")]
+y47 = list(y47.loc[55])
+y47 = list(y47[1:])
+
+y48 = df_public[df_public["Type_of_Construction"].str.contains("Sewage and waste disposal")]
+y48 = list(y48.loc[56])
+y48 = list(y48[1:])
+
+y49 = df_public[df_public["Type_of_Construction"].str.contains("Water supply")]
+y49 = list(y49.loc[57])
+y49 = list(y49[1:])
+
+y50 = df_public[df_public["Type_of_Construction"].str.contains("Conservation and development")]
+y50 = list(y50.loc[58])
+y50 = list(y50[1:])
+
+```
+
+```{python}
+
+
+# Plot the line charts - All, Private, Public 
+
+
+# set the conditional color
+c_positive = "#D9E8F5"
+c_negative = "#F58BA1"
+c_positive_s = "#0B508C"
+c_negative_s = "#A61C41"
+
+def colorizer(y):
+  if (y)[0] > (y)[-1]:
+    return c_negative
+  else:
+    return c_positive
+  
+
+
+def colorizer_s(y):
+  if (y)[0] > (y)[-1]:
+    return c_negative_s
+  else:
+    return c_positive_s
+  
+# set the conditional marker
+m_positive = "^"
+m_negative = "v"
+m_positive_s = "^"
+m_negative_s = "v"
+
+def marker(y):
+  if (y)[0] > (y)[-1]:
+    return m_negative
+  else:
+    return m_positive
+  
+def marker_s(y):
+  if (y)[0] > (y)[-1]:
+    return m_negative_s
+  else:
+    return m_positive_s
+
+  
+# additional styling options
+lw=2
+lw2=2
+    
+
+# Create 2x2 sub plots
+fig = plt.figure(figsize=(10,8))
+
+gs = gridspec.GridSpec(2, 2)
+plt.suptitle("Growth and Decline of Construction Spending", fontsize=20)
+
+
+
+ax1 = pl.subplot(gs[:,0], title="All Construction")
+
+ax1.plot(x, y4, marker=(marker(y4)), lw=lw, color=(colorizer(y4)))
+ax1.plot(x, y5, marker=(marker(y5)), lw=lw, color=(colorizer(y5)))
+ax1.plot(x, y6, marker=(marker(y6)), lw=lw, color=(colorizer(y6)))
+ax1.plot(x, y7, marker=(marker(y7)), lw=lw, color=(colorizer(y7)))
+ax1.plot(x, y8, marker=(marker(y8)), lw=lw, color=(colorizer(y8)))
+ax1.plot(x, y9, marker=(marker(y9)), lw=lw,color=(colorizer(y9)))
+ax1.plot(x, y10, marker=(marker(y10)), lw=lw, color=(colorizer(y10)))
+ax1.plot(x, y11, marker=(marker(y11)), lw=lw, color=(colorizer(y11)))
+ax1.plot(x, y12, marker=(marker(y12)), lw=lw, color=(colorizer(y12)))
+ax1.plot(x, y13, marker=(marker(y13)), lw=lw, color=(colorizer(y13)))
+ax1.plot(x, y14, marker=(marker_s(y14)), lw=lw2, color=(colorizer_s(y14))) # power
+ax1.plot(x, y15, marker=(marker(y15)), lw=lw, color=(colorizer(y15)))
+ax1.plot(x, y16, marker=(marker(y16)), lw=lw, color=(colorizer(y16)))
+ax1.plot(x, y17, marker=(marker(y17)), lw=lw, color=(colorizer(y17)))
+ax1.plot(x, y18, marker=(marker(y18)), lw=lw, color=(colorizer(y18)))
+ax1.plot(x, y19, marker=(marker_s(y19)), lw=lw2, color=(colorizer_s(y19))) # manufacturing
+#ax1.plot(x, y1, marker=(marker_s(y1)), lw=lw2, color=(colorizer_s(y1)))
+ax1.plot(x, y2, marker=(marker_s(y2)), lw=lw2, color=(colorizer_s(y2)))
+ax1.plot(x, y3, marker=(marker_s(y3)), lw=lw2, color=(colorizer_s(y3)))
+
+
+
+ax2 = pl.subplot(gs[0,1], title="Private Sector")
+
+ax2.plot(x, y22, marker=(marker(y22)), lw=lw, color=(colorizer(y22))) # new single family
+ax2.plot(x, y23, marker=(marker(y23)), lw=lw, color=(colorizer(y23)))
+
+ax2.plot(x, y25, marker=(marker(y25)), lw=lw, color=(colorizer(y25)))
+ax2.plot(x, y26, marker=(marker(y26)), lw=lw, color=(colorizer(y26)))
+ax2.plot(x, y27, marker=(marker(y27)), lw=lw, color=(colorizer(y27)))
+ax2.plot(x, y28, marker=(marker(y28)), lw=lw, color=(colorizer(y28)))
+ax2.plot(x, y29, marker=(marker(y29)), lw=lw, color=(colorizer(y29)))
+ax2.plot(x, y30, marker=(marker(y30)), lw=lw, color=(colorizer(y30)))
+ax2.plot(x, y31, marker=(marker(y31)), lw=lw, color=(colorizer(y31)))
+ax2.plot(x, y32, marker=(marker(y32)), lw=lw, color=(colorizer(y32)))
+ax2.plot(x, y33, marker=(marker(y33)), lw=lw, color=(colorizer(y33)))
+ax2.plot(x, y34, marker=(marker_s(y34)), lw=lw2, color=(colorizer_s(y34))) # power
+ax2.plot(x, y35, marker=(marker_s(y35)), lw=lw2, color=(colorizer_s(y35))) # manufacturing
+#ax2.plot(x, y20, marker=(marker_s(y20)), lw=lw2, color=(colorizer_s(y20)))
+#ax2.plot(x, y21, marker=(marker_s(y21)), lw=lw2,color=(colorizer_s(y21)))
+
+#ax2.plot(x, y24, marker=(marker_s(y24)), lw=lw2, color=(colorizer_s(y24)))
+
+
+
+ax3 = pl.subplot(gs[1,1], title="Public Sector")
+
+ax3.plot(x, y39, marker=(marker(y39)), lw=lw, color=(colorizer(y39)))
+ax3.plot(x, y40, marker=(marker(y40)), lw=lw, color=(colorizer(y40)))
+ax3.plot(x, y41, marker=(marker(y41)), lw=lw, color=(colorizer(y41)))
+ax3.plot(x, y42, marker=(marker(y42)), lw=lw, color=(colorizer(y42)))
+ax3.plot(x, y43, marker=(marker(y43)), lw=lw, color=(colorizer(y43)))
+ax3.plot(x, y44, marker=(marker(y44)), lw=lw, color=(colorizer(y44)))
+ax3.plot(x, y45, marker=(marker(y45)), lw=lw, color=(colorizer(y45)))
+ax3.plot(x, y46, marker=(marker(y46)), lw=lw, color=(colorizer(y46)))
+ax3.plot(x, y47, marker=(marker(y47)), lw=lw, color=(colorizer(y47)))
+ax3.plot(x, y48, marker=(marker(y48)), lw=lw, color=(colorizer(y48)))
+ax3.plot(x, y49, marker=(marker_s(y49)), lw=lw2, color=(colorizer_s(y49))) # water supply
+ax3.plot(x, y50, marker=(marker(y50)), lw=lw, color=(colorizer(y50)))
+#ax3.plot(x, y36, marker=(marker_s(y36)), lw=lw2, color=(colorizer_s(y36)))
+#ax3.plot(x, y37, marker=(marker_s(y37)), lw=lw2, color=(colorizer_s(y37)))
+#ax3.plot(x, y38, marker=(marker_s(y38)), lw=lw2, color=(colorizer_s(y38)))
+
+
+
+# set labels
+ax1.set_xticklabels(["Oct 2021","","","Jan 2022","","","Apr 2022","","","Jul 2022", "", "", "Oct 2022"], rotation=45, fontsize=10)
+
+ax2.set_xticklabels(["Oct 2021","","","Jan 2022","","","Apr 2022","","","Jul 2022", "", "", "Oct 2022"], rotation=45, fontsize=10)
+
+ax3.set_xticklabels(["Oct 2021","","","Jan 2022","","","Apr 2022","","","Jul 2022", "", "", "Oct 2022"], rotation=45, fontsize=10)
+  
+ax1.set_yticks([0, 20000, 40000, 60000, 80000, 100000, 120000, 140000, 160000, 180000, 200000, 220000, 240000, 260000, 280000, 300000, 320000, 340000, 360000, 380000, 400000, 420000, 440000, 460000, 480000, 500000, 520000, 540000, 560000, 580000, 600000, 620000, 640000, 660000, 680000, 700000, 720000, 740000, 760000, 780000, 800000, 820000, 840000, 860000, 880000, 900000, 920000, 940000, 960000, 980000, 1000000])
+#ax1.set_yticklabels(("$0B","$20B", "$40B", "$60B", "$80B", "$100B", "$120B", "$140B", "$160B", "$180B", "$200B", "$220B", "$240B", "$260B", "$280B", "$300B", "$320B", "$340B", "$360B", "$380B", "$400B", "$420B", "$440B", "$460B", "$480B", "$500B", "$520B", "$540B", "$560B", "$580B", "$600B", "$620B", "$640B", "$660B", "$680B", "$700B", "$720B","$740B","$760B","$780B","$800B", "$820B","$840B", "$860B","$880B", "$900B", "$920B", "$940B", "$960B", "$980B"), fontsize=10)
+ax1.set_yticklabels(("$0B","", "", "", "", "$100B", "", "", "", "", "$200B", "", "", "", "", "$300B", "", "", "", "", "$400B", "", "", "", "", "$500B", "", "", "", "", "$600B", "", "", "", "", "$700B", "","","","","$800B", "","", "","", "$900B", "", "", "", "", "1,000B"), fontsize=10)
+
+ax2.set_yticks([0, 20000, 40000, 60000, 80000, 100000, 120000, 140000, 160000, 180000, 200000, 220000, 240000, 260000, 280000, 300000, 320000, 340000, 360000, 380000, 400000, 420000, 440000, 460000, 480000, 500000, 520000, 540000, 560000, 580000, 600000, 620000, 640000, 660000, 680000, 700000, 720000, 740000, 760000, 780000, 800000, 820000, 840000, 860000, 880000, 900000, 920000, 940000, 960000, 980000, 1000000])
+ax2.set_yticklabels(("$0B","", "", "", "", "$100B", "", "", "", "", "$200B", "", "", "", "", "$300B", "", "", "", "", "$400B", "", "", "", "", "$500B", "", "", "", "", "$600B", "", "", "", "", "$700B", "","","","","$800B", "","", "","", "$900B", "", "", "", "", "1,000B"), fontsize=10)
+
+ax3.set_yticks([0, 20000, 40000, 60000, 80000, 100000, 120000, 140000, 160000, 180000, 200000, 220000, 240000, 260000, 280000, 300000, 320000, 340000, 360000, 380000, 400000, 420000, 440000, 460000, 480000, 500000, 520000, 540000, 560000, 580000, 600000, 620000, 640000, 660000, 680000, 700000, 720000, 740000, 760000, 780000, 800000, 820000, 840000, 860000, 880000, 900000, 920000, 940000, 960000, 980000, 1000000])
+ax3.set_yticklabels(("$0B","", "", "", "", "$100B", "", "", "", "", "$200B", "", "", "", "", "$300B", "", "", "", "", "$400B", "", "", "", "", "$500B", "", "", "", "", "$600B", "", "", "", "", "$700B", "","","","","$800B", "","", "","", "$900B", "", "", "", "", "1,000B"), fontsize=10)
+
+
+# set limits
+ax1.set_ylim(0,140000)
+ax2.set_ylim(0,540000)
+ax3.set_ylim(0,120000)
+
+
+# annotate
+ax1.annotate('Manufacturing ~ (+33.5% change)', xy =(0, 82159),
+             xytext =(2, 69159),
+             arrowprops = dict(facecolor =c_positive_s,
+                               shrink = 0.05,
+                               alpha = 0.5),   )
+                               
+ax1.annotate('Power ~ (-10% change)', xy =(0, 119800),
+             xytext =(2, 131800),
+             arrowprops = dict(facecolor =c_negative_s,
+                               shrink = 0.05,
+                               alpha = 0.5),   )
+
+ax2.annotate('Manufacturing ~ (+33.6% change)', xy =(0, 79159),
+             xytext =(2, 200000),
+             arrowprops = dict(facecolor =c_positive_s,
+                               shrink = 0.05,
+                               alpha = 0.5),   )
+                               
+ax2.annotate('Power ~ (-13.4% change)', xy =(0, 105000),
+             xytext =(2, 250000),
+             arrowprops = dict(facecolor =c_negative_s,
+                               shrink = 0.05,
+                               alpha = 0.5),   )
+                               
+ax2.annotate('New Single Family ~ (-5.4% change)', xy =(0, 430000),
+             xytext =(2, 350000),
+             arrowprops = dict(facecolor =c_negative_s,
+                               shrink = 0.05,
+                               alpha = 0.5),   )
+                               
+ax3.annotate('Water Supply ~ (+34.5% change)', xy =(0, 19000),
+             xytext =(2, 55000),
+             arrowprops = dict(facecolor =c_positive_s,
+                               shrink = 0.05,
+                               alpha = 0.5,),   )
+                               
+
+
+
+# show plot
+plt.tight_layout()
+plt.show()
+```
+
+The most significant growth percentages and decline percentages over the past year are colored with stronger blue and red lines in each chart. In addition, New Single Family as a category is also noted due to the large amount of spending in that category in general. That said, efforts were made to separate overall category summary data such as "Residential", "Nonresidential", and "Total..." . Overall summary categories are not shown in favor of displaying broken down categories within those overall categories in a closer look. Please refer to tables for overall summary and breakdown categories presented together. Please also refer to the U.S. Census Bureau's [definitions](https://www.census.gov/construction/c30/definitions.html) for any given category.
+
+\-\-\--
+
+Sources Cited
+
+Bureau, U. S. C. (2019, April 15). *Construction spending*. United States Census Bureau. Retrieved December 1, 2022, from https://www.census.gov/construction/c30/c30index.html
