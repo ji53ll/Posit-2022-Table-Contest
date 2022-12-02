@@ -36,7 +36,7 @@ library(sparkline)
 # import data - June 2022 - Oct 2022
 url <- 'https://www.census.gov/construction/c30/xls/release.xlsx'
 
-#url <- pr202209.xlsx #alternatively, please use this provided spreadsheet in a static way
+#url <- 'pr202209.xlsx' #alternatively, please use this provided spreadsheet in a static way
 
 url1 <- rio::import(file = url,which = 1, skip = 4)
 
@@ -55,7 +55,7 @@ df1 <- select(df1, Type_of_Construction, Jun_2022, Jul_2022, Aug_2022, Sep_2022,
 # import data from URL
 url <- 'https://www.census.gov/construction/c30/xls/pr202205.xlsx'
 
-#url <- pr202205.xlsx #alternatively, please use this provided spreadsheet in a static way
+#url <- 'pr202205.xlsx' #alternatively, please use this provided spreadsheet in a static way
 url2 <- rio::import(file = url,which = 1, skip = 4)
 
 # clean up data
@@ -72,7 +72,7 @@ df2 <- select(df2, Type_of_Construction1, Jan_2022, Feb_2022, Mar_2022, Apr_2022
 # Nov 2021 - Dec 2021 data
 # import data from URL
 url <- 'https://www.census.gov/construction/c30/xls/pr202201.xlsx'
-#url <- pr202201.xlsx #alternatively, please use this provided spreadsheet in a static way
+#url <- 'pr202201.xlsx' #alternatively, please use this provided spreadsheet in a static way
 url3 <- rio::import(file = url,which = 1, skip = 4)
 
 # clean up data
